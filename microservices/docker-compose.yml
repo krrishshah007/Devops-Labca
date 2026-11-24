@@ -1,0 +1,127 @@
+services:
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    image: microservices-gateway:latest
+    container_name: gateway
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - ADVISORY_URL=http://advisory:8003
+      - WEATHER_URL=http://weather:8002
+    networks:
+      - ms-net
+    depends_on:
+      - auth
+      - weather
+      - advisory
+      - translation
+      - redis
+
+  auth:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile
+    image: microservices-auth:latest
+    container_name: auth
+    restart: always
+    ports:
+      - "8001:8001"
+    networks:
+      - ms-net
+
+  weather:
+    build:
+      context: ./weather
+      dockerfile: Dockerfile
+    image: microservices-weather:latest
+    container_name: weather
+    restart: always
+    ports:
+      - "8002:8002"
+    networks:
+      - ms-net
+
+  advisory:
+    build:
+      context: ./advisory
+      dockerfile: Dockerfile
+    image: microservices-advisory:latest
+    container_name: advisory
+    restart: always
+    ports:
+      - "8003:8003"
+    networks:
+      - ms-net
+
+  translation:
+    build:
+      context: ./translation
+      dockerfile: Dockerfile
+    image: microservices-translation:latest
+    container_name: translation
+    restart: always
+    ports:
+      - "8004:8004"
+    networks:
+      - ms-net
+
+  notification:
+    build:
+      context: ./notification
+      dockerfile: Dockerfile
+    image: microservices-notification:latest
+    container_name: notification
+    restart: always
+    ports:
+      - "8005:8005"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - ms-net
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - ms-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - ms-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - ms-net
+    depends_on:
+      - prometheus
+
+networks:
+  ms-net:
+    driver: bridge
